@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Secure Note</title>
+    <style>
+        :root {
+            --bg-color: #0f1015;
+            --card-bg: rgba(26, 28, 35, 0.95);
+            --accent: #6366f1;
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+        }
+
+        #view-screen { flex: 1; padding: 25px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
+        #edit-screen { display: none; flex: 1; flex-direction: column; padding: 15px; }
+        #editor { flex: 1; background: transparent; border: none; color: white; width: 100%; outline: none; font-size: 16px; line-height: 1.6; resize: none; }
+
+        .fab { position: fixed; bottom: 25px; right: 25px; background: var(--accent); color: white; width: 56px; height: 56px; border-radius: 50%; border: none; box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5); font-size: 28px; z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
+        .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+        .tool-btn, select { background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: white; padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; }
+        .tool-btn.active { background: var(--accent); border-color: var(--accent); }
+
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: var(--card-bg); width: 100%; max-width: 400px; padding: 24px; border-radius: 20px; border: 1px solid var(--border); }
+        
+        .menu-btn { width: 100%; padding: 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: white; margin-bottom: 10px; border-radius: 12px; font-size: 15px; text-align: left; cursor: pointer; }
+        .setting-item { margin-bottom: 20px; }
+        .input-box { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; outline: none; margin-top: 8px; }
+        .primary-btn { width: 100%; background: var(--accent); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        
+        #lock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 300; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- 잠금 레이어 -->
+    <div id="lock-screen">
+        <div style="background: var(--card-bg); padding: 25px; border-radius: 16px; width: 100%; max-width: 320px; text-align: center; border: 1px solid var(--border);">
+            <h3 style="margin-bottom: 15px;">🔒 잠김</h3>
+            <input type="password" id="unlock-pass" class="input-box" placeholder="비밀번호">
+            <button class="primary-btn" style="margin-top: 15px;" onclick="unlockData()">잠금 해제</button>
+        </div>
+    </div>
+
+    <div id="view-screen">내용이 없습니다. + 버튼을 눌러 작성하세요.</div>
+
+    <div id="edit-screen">
+        <div class="toolbar">
+            <select id="fontSizeSelect" onchange="changeStyle('size', this.value)">
+                <option value="14px">보통</option>
+                <option value="18px" selected>크게</option>
+            </select>
+            <button class="tool-btn" onclick="changeStyle('bold')"><b>B</b></button>
+        </div>
+        <textarea id="editor" placeholder="내용을 입력하세요..." oninput="autoSave()"></textarea>
+    </div>
+
+    <button class="fab" onclick="toggleMenu()">+</button>
+
+    <!-- 메뉴 모달 -->
+    <div id="menu-modal" class="modal" onclick="closeModal('menu-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="menu-btn" onclick="openEditor()">✏️ 글 작성 / 수정</button>
+            <button class="menu-btn" onclick="openSettings()">⚙️ 보안 설정</button>
+            <button class="menu-btn" style="color: #ff6b6b;" onclick="clearAll()">🗑 데이터 삭제</button>
+        </div>
+    </div>
+
+    <!-- 설정 모달 -->
+    <div id="settings-modal" class="modal" onclick="closeModal('settings-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="margin-bottom: 20px;">보안 설정</h3>
+            <div class="setting-item">
+                <label><input type="checkbox" id="aes-toggle" onchange="toggleAesInput(this.checked)"> AES-256 암호화 사용</label>
+                <input type="password" id="cfg-pass" class="input-box" placeholder="비밀번호 설정" style="display:none;">
+            </div>
+            <button class="primary-btn" onclick="saveSettings()">설정 저장</button>
+        </div>
+    </div>
+
+    <script>
+        const editor = document.getElementById('editor');
+        const viewer = document.getElementById('view-screen');
+        let config = { aesEnabled: false, password: '', style: { size: '18px', isBold: false } };
+
+        window.onload = () => {
+            const savedCfg = localStorage.getItem('msd_config');
+            if (savedCfg) config = JSON.parse(savedCfg);
+            applyStyles();
+
+            const rawData = localStorage.getItem('msd_data');
+            if (rawData && config.aesEnabled) {
+                document.getElementById('lock-screen').style.display = 'flex';
+            } else if (rawData) {
+                const parsed = JSON.parse(rawData);
+                updateUI(parsed.text || '');
+            }
+        };
+
+        function updateUI(text) { editor.value = text; viewer.textContent = text || "내용이 없습니다."; }
+        function applyStyles() {
+            [editor, viewer].forEach(el => { el.style.fontSize = config.style.size; el.style.fontWeight = config.style.isBold ? 'bold' : 'normal'; });
+        }
+
+        // 모달/화면 전환
+        function toggleMenu() { document.getElementById('menu-modal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function openEditor() { closeModal('menu-modal'); viewer.style.display = 'none'; document.getElementById('edit-screen').style.display = 'flex'; }
+        function openSettings() { closeModal('menu-modal'); document.getElementById('aes-toggle').checked = config.aesEnabled; document.getElementById('cfg-pass').style.display = config.aesEnabled ? 'block' : 'none'; document.getElementById('settings-modal').style.display = 'flex'; }
+        
+        function toggleAesInput(checked) { document.getElementById('cfg-pass').style.display = checked ? 'block' : 'none'; }
+        
+        function saveSettings() {
+            config.aesEnabled = document.getElementById('aes-toggle').checked;
+            const p = document.getElementById('cfg-pass').value;
+            if (config.aesEnabled && p) config.password = p;
+            localStorage.setItem('msd_config', JSON.stringify(config));
+            closeModal('settings-modal');
+            autoSave();
+            alert("저장되었습니다.");
+        }
+
+        function changeStyle(type, val) {
+            if (type === 'size') config.style.size = val;
+            if (type === 'bold') config.style.isBold = !config.style.isBold;
+            applyStyles();
+            localStorage.setItem('msd_config', JSON.stringify(config));
+        }
+
+        // 자동 저장 및 암호화
+        let saveTimer;
+        function autoSave() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(async () => {
+                const text = editor.value;
+                viewer.textContent = text;
+                
+                let dataToSave = { text: text };
+                if (config.aesEnabled && config.password) {
+                    const encrypted = await encryptAES(text, config.password);
+                    dataToSave = { encrypted: encrypted };
+                }
+                localStorage.setItem('msd_data', JSON.stringify(dataToSave));
+            }, 500);
+        }
+
+        async function unlockData() {
+            const pass = document.getElementById('unlock-pass').value;
+            const rawData = localStorage.getItem('msd_data');
+            try {
+                const parsed = JSON.parse(rawData);
+                const decrypted = await decryptAES(parsed.encrypted, pass);
+                config.password = pass;
+                updateUI(decrypted);
+                document.getElementById('lock-screen').style.display = 'none';
+            } catch (e) { alert("비밀번호가 틀렸습니다."); }
+        }
+
+        function clearAll() { if (confirm("데이터를 삭제하시겠습니까?")) { localStorage.clear(); location.reload(); } }
+
+        // AES 로직
+        async function getKey(password, salt) {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+            return crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+        }
+
+        async function encryptAES(text, password) {
+            const enc = new TextEncoder();
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await getKey(password, salt);
+            const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(text));
+            const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+            combined.set(salt, 0); combined.set(iv, salt.length); combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+            return btoa(String.fromCharCode(...combined));
+        }
+
+        async function decryptAES(cipherBase64, password) {
+            const combined = Uint8Array.from(atob(cipherBase64), c => c.charCodeAt(0));
+            const salt = combined.slice(0, 16);
+            const iv = combined.slice(16, 28);
+            const data = combined.slice(28);
+            const key = await getKey(password, salt);
+            const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
+            return new TextDecoder().decode(decrypted);
+        }
+    </script>
+</body>
+</html>
