@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <!-- 축소 현상 방지 및 모바일 비율 고정 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>미니 엑셀 Super</title>
+  <style>
+    :root {
+      --bg-color: #000000;
+      --text-color: #ffffff;
+      --font-size: 12px;
+      --border-color: #333333;
+      --header-bg: #111111;
+      --super-bg: #1c1c1e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-size: var(--font-size);
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
+    /* 상단 컨트롤 바 */
+    .top-bar {
+      padding: 4px 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border-bottom: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+      z-index: 30;
+      flex-shrink: 0;
+    }
+    .top-bar::-webkit-scrollbar { display: none; }
+
+    .app-title {
+      font-weight: bold;
+      font-size: 12px;
+      padding: 0 4px;
+      color: var(--text-color);
+      flex-shrink: 0;
+      margin-right: 2px;
+    }
+
+    button {
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 3px 6px;
+      font-size: 11px;
+      border-radius: 3px;
+      cursor: pointer;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    button:active { opacity: 0.6; }
+
+    /* 지우기 버튼 강조 스타일 */
+    .btn-clear {
+      border-color: #ff453a;
+      color: #ff453a;
+    }
+
+    /* 메인 표 테이블 스크롤 영역 */
+    .table-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      background: var(--bg-color);
+      position: relative;
+    }
+
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: fixed;
+      width: max-content;
+    }
+
+    th, td {
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      text-align: center;
+      font-size: var(--font-size);
+      position: relative;
+      padding: 0;
+      background-color: var(--bg-color);
+    }
+
+    /* 틀고정 (행/열 헤더) */
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: var(--header-bg);
+    }
+
+    th.sticky-col-0, td.sticky-col-0 {
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      background-color: var(--header-bg);
+    }
+
+    th.sticky-col-1, td.sticky-col-1 {
+      position: sticky;
+      left: 32px;
+      z-index: 10;
+      background-color: var(--bg-color);
+    }
+    th.sticky-col-1 {
+      background-color: var(--header-bg);
+    }
+
+    thead th.sticky-col-0, thead th.sticky-col-1 { z-index: 20; }
+
+    /* 헤더 선택 상태 */
+    th.header-btn {
+      color: var(--text-color);
+      font-weight: bold;
+      user-select: none;
+      cursor: pointer;
+    }
+    th.header-btn.selected {
+      background-color: #333333 !important;
+      box-shadow: inset 0 0 0 1px var(--text-color);
+    }
+
+    /* 입력 셀 */
+    .cell-input {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-color);
+      text-align: center;
+      font-size: var(--font-size);
+      outline: none;
+      padding: 0 2px;
+    }
+    .cell-input:focus {
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* 슈퍼셀 디자인 */
+    td.super-cell { background-color: var(--super-bg); }
+    .super-badge {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      font-size: 8px;
+      line-height: 1;
+      color: var(--text-color);
+      border: 1px solid var(--text-color);
+      padding: 0px 1px;
+      border-radius: 2px;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* 하단 시트 바 */
+    .bottom-bar {
+      height: 34px;
+      background: var(--header-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 4px;
+      gap: 4px;
+      overflow-x: auto;
+      z-index: 30;
+      flex-shrink: 0;
+    }
+    .bottom-bar::-webkit-scrollbar { display: none; }
+
+    .sheet-tab {
+      background: var(--bg-color);
+      color: var(--text-color);
+      opacity: 0.6;
+      border: 1px solid var(--border-color);
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+    .sheet-tab.active {
+      opacity: 1;
+      border-color: var(--text-color);
+      font-weight: bold;
+    }
+
+    /* 공통 팝업 모달 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      width: 90%;
+      max-width: 360px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--text-color);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-radius: 6px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-content.large-modal {
+      width: 95vw;
+      height: 85vh;
+      max-width: 800px;
+      max-height: 900px;
+      padding: 16px;
+      gap: 12px;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: bold;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+    }
+
+    .modal-textarea {
+      flex: 1;
+      width: 100%;
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      border-radius: 4px;
+    }
+    .modal-textarea:focus { border-color: var(--text-color); }
+
+    /* 검색창 UI */
+    .search-input-group { display: flex; gap: 6px; }
+    .search-input {
+      flex: 1;
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+    }
+    .search-results {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+    }
+    .search-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    .search-item:hover, .search-item:active {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* 설정창 UI */
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .setting-row input[type="text"] {
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+      text-align: right;
+    }
+    .setting-row input[type="color"] {
+      border: 1px solid var(--border-color);
+      background: none;
+      width: 36px; height: 26px;
+      cursor: pointer;
+    }
+    .setting-row select {
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+    .danger-btn {
+      border-color: #ff5555 !important;
+      color: #ff5555 !important;
+    }
+
+    /* 랜덤 옵션 리스트 전용 스타일 */
+    .random-config-container {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      padding: 6px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .random-col-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      border-bottom: 1px dashed var(--border-color);
+      padding-bottom: 4px;
+    }
+    .random-col-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .random-col-item select, .random-col-item input[type="number"] {
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="app-title" id="app-title-display">신세계</div>
+    <button onclick="exportRowData()">아웃</button>
+    <button onclick="openRandomModal()">랜덤</button>
+    <button onclick="openSearchModal()">검색</button>
+    <button onclick="clearSelectedContent()" class="btn-clear">지우기</button>
+    <button onclick="changeCellBgColor()">셀색</button>
+    <button onclick="sortColumn('asc')">▲ 정렬</button>
+    <button onclick="sortColumn('desc')">▼ 정렬</button>
+    <button onclick="toggleSuperTarget()">SC</button>
+    <button id="memo-btn" onclick="openSuperMemo()" style="display:none;">메모</button>
+    <button onclick="renameHeader()">열명</button>
+    <button onclick="resizeSelected()">크기</button>
+    <button onclick="addRow()">행+</button>
+    <button onclick="removeRow()">행-</button>
+    <button onclick="addCol()">열+</button>
+    <button onclick="removeCol()">열-</button>
+    <button onclick="moveSelected('prev')">순서+</button>
+    <button onclick="moveSelected('next')">순서-</button>
+    <button onclick="openSettings()">설정</button>
+  </div>
+
+  <div class="table-container">
+    <table id="excel-table">
+      <thead><tr id="header-row"><th class="header-btn sticky-col-0" style="width:32px;"></th></tr></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="bottom-bar">
+    <div id="sheet-list" style="display:flex; gap:4px;"></div>
+    <button onclick="addSheet()">+</button>
+    <button onclick="renameCurrentSheet()">이름</button>
+    <button onclick="moveSheet('prev')">◀</button>
+    <button onclick="moveSheet('next')">▶</button>
+    <button onclick="deleteCurrentSheet()">-</button>
+  </div>
+
+  <!-- 행 출력 모달 -->
+  <div class="modal-overlay" id="out-modal">
+    <div class="modal-content large-modal">
+      <div class="modal-title" id="out-modal-title">행 데이터 출력</div>
+      <textarea class="modal-textarea" id="out-text" readonly placeholder="선택된 행의 데이터가 표시됩니다..."></textarea>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button onclick="copyOutText()" style="padding: 6px 14px; font-size: 12px; font-weight:bold; background-color: #333;">클립보드 복사</button>
+        <button onclick="closeOutModal()" style="padding: 6px 12px; font-size: 12px;">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 랜덤 추출 모달 -->
+  <div class="modal-overlay" id="random-modal">
+    <div class="modal-content large-modal">
+      <div class="modal-title">열별 데이터 랜덤 조합</div>
+      
+      <!-- 열별 확률 설정 UI -->
+      <div class="random-config-container" id="random-config-list"></div>
+
+      <textarea class="modal-textarea" id="random-text" readonly placeholder="Start 버튼을 누르면 각 열에서 조건에 맞게 랜덤으로 뽑아 이어줍니다..."></textarea>
+      
+      <div style="display:flex; justify-content:space-between; gap:8px;">
+        <button onclick="generateRandomCombination()" style="padding: 6px 16px; font-size: 12px; font-weight:bold; background-color: #0055fe; color:#fff; border:none;">Start</button>
+        <div style="display:flex; gap:8px;">
+          <button onclick="copyRandomText()" style="padding: 6px 14px; font-size: 12px; font-weight:bold; background-color: #333;">클립보드 복사</button>
+          <button onclick="closeRandomModal()" style="padding: 6px 12px; font-size: 12px;">닫기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="memo-modal">
+    <div class="modal-content large-modal">
+      <div class="modal-title" id="modal-title">C1</div>
+      <textarea class="modal-textarea" id="memo-text" placeholder="메모를 자유롭게 입력하세요..."></textarea>
+      <div style="text-align:right;">
+        <button onclick="closeSuperMemo()" style="padding: 6px 12px; font-size: 12px;">닫기 & 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="search-modal">
+    <div class="modal-content large-modal">
+      <div class="modal-title">데이터 검색</div>
+      <div class="search-input-group">
+        <input type="text" class="search-input" id="search-keyword" placeholder="검색어를 입력하세요..." oninput="executeSearch()">
+      </div>
+      <div class="search-results" id="search-results">
+        <div style="padding:12px; text-align:center; color:#888;">검색어를 입력하세요.</div>
+      </div>
+      <div style="text-align:right;">
+        <button onclick="closeSearchModal()" style="padding: 6px 12px; font-size: 12px;">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-content">
+      <div class="modal-title">설정 & 데이터 관리</div>
+      <div class="setting-row">
+        <span>타이틀 이름</span>
+        <input type="text" id="cfg-app-title" onchange="updateTheme()">
+      </div>
+      <div class="setting-row">
+        <span>배경색</span>
+        <input type="color" id="cfg-bg" onchange="updateTheme()">
+      </div>
+      <div class="setting-row">
+        <span>글자색</span>
+        <input type="color" id="cfg-text" onchange="updateTheme()">
+      </div>
+      <div class="setting-row">
+        <span>폰트 크기</span>
+        <select id="cfg-font-size" onchange="updateTheme()">
+          <option value="11px">11px (작게)</option>
+          <option value="12px">12px (기본)</option>
+          <option value="14px">14px (크게)</option>
+          <option value="16px">16px (매우크게)</option>
+        </select>
+      </div>
+      <hr style="border:0; border-top:1px solid var(--border-color); margin:2px 0;">
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button onclick="exportJSON()">JSON 백업 내보내기</button>
+        <button onclick="document.getElementById('import-file').click()">JSON 백업 불러오기</button>
+        <input type="file" id="import-file" accept=".json,application/json,text/plain,*/*" style="display:none;" onchange="importJSON(event)">
+      </div>
+      <hr style="border:0; border-top:1px solid var(--border-color); margin:2px 0;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <button class="danger-btn" onclick="clearAllData()">전체 데이터 초기화</button>
+        <button onclick="closeSettings()">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 기본 A~Z 열 배열 생성
+    const DEFAULT_COLS = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i));
+
+    const DEFAULT_STORE = {
+      sheetOrder: ['시트1'],
+      activeSheet: '시트1',
+      settings: { appTitle: '신세계', bgColor: '#000000', textColor: '#ffffff', fontSize: '12px' },
+      colWidths: {},
+      rowHeights: {},
+      sheets: {
+        '시트1': {
+          cols: [...DEFAULT_COLS],
+          colTitles: { 'A': '이름' },
+          rowCount: 300,
+          data: {}
+        }
+      }
+    };
+
+    let store = JSON.parse(localStorage.getItem('mini_excel_v4')) || DEFAULT_STORE;
+    if (!store.sheetOrder) store.sheetOrder = Object.keys(store.sheets);
+    if (!store.settings) store.settings = DEFAULT_STORE.settings;
+    if (!store.settings.appTitle) store.settings.appTitle = '신세계';
+
+    let selectedTarget = { type: null, id: null };
+
+    function save() {
+      localStorage.setItem('mini_excel_v4', JSON.stringify(store));
+    }
+
+    function applyTheme() {
+      const root = document.documentElement;
+      const cfg = store.settings || DEFAULT_STORE.settings;
+      
+      document.getElementById('app-title-display').innerText = cfg.appTitle || '신세계';
+      document.getElementById('cfg-app-title').value = cfg.appTitle || '신세계';
+
+      root.style.setProperty('--bg-color', cfg.bgColor || '#000000');
+      root.style.setProperty('--text-color', cfg.textColor || '#ffffff');
+      root.style.setProperty('--font-size', cfg.fontSize || '12px');
+
+      const isDark = (cfg.bgColor || '#000000').toLowerCase() === '#000000' || cfg.bgColor < '#888888';
+      root.style.setProperty('--header-bg', isDark ? '#111111' : '#e0e0e0');
+      root.style.setProperty('--border-color', isDark ? '#333333' : '#ccc');
+      root.style.setProperty('--super-bg', isDark ? '#1c1c1e' : '#e5e5ea');
+
+      document.getElementById('cfg-bg').value = cfg.bgColor || '#000000';
+      document.getElementById('cfg-text').value = cfg.textColor || '#ffffff';
+      document.getElementById('cfg-font-size').value = cfg.fontSize || '12px';
+    }
+
+    function updateTheme() {
+      store.settings = {
+        appTitle: document.getElementById('cfg-app-title').value,
+        bgColor: document.getElementById('cfg-bg').value,
+        textColor: document.getElementById('cfg-text').value,
+        fontSize: document.getElementById('cfg-font-size').value
+      };
+      save();
+      applyTheme();
+    }
+
+    function getActiveSheetObj() {
+      if (!store.sheets[store.activeSheet]) {
+        store.sheets[store.activeSheet] = { cols: [...DEFAULT_COLS], colTitles: {}, rowCount: 300, data: {} };
+      }
+      return store.sheets[store.activeSheet];
+    }
+
+    function renderTabs() {
+      const list = document.getElementById('sheet-list');
+      list.innerHTML = '';
+      store.sheetOrder.forEach(name => {
+        const tab = document.createElement('div');
+        tab.className = `sheet-tab ${name === store.activeSheet ? 'active' : ''}`;
+        tab.innerText = name;
+        tab.onclick = () => switchSheet(name);
+        list.appendChild(tab);
+      });
+    }
+
+    /* 선택한 셀/행/열 내용 지우기 기능 */
+    function clearSelectedContent() {
+      const { type, id } = selectedTarget;
+      if (!type) return alert('지울 셀, 행(숫자) 또는 열(문자)을 먼저 선택해 주세요.');
+
+      const sheet = getActiveSheetObj();
+
+      if (type === 'cell') {
+        if (sheet.data[id]) {
+          sheet.data[id].title = '';
+          sheet.data[id].memo = '';
+        }
+      } else if (type === 'col') {
+        for (let r = 1; r <= sheet.rowCount; r++) {
+          const cellId = `${id}${r}`;
+          if (sheet.data[cellId]) {
+            sheet.data[cellId].title = '';
+            sheet.data[cellId].memo = '';
+          }
+        }
+      } else if (type === 'row') {
+        sheet.cols.forEach(c => {
+          const cellId = `${c}${id}`;
+          if (sheet.data[cellId]) {
+            sheet.data[cellId].title = '';
+            sheet.data[cellId].memo = '';
+          }
+        });
+      }
+
+      save();
+      renderTable();
+    }
+
+    /* 키보드 엔터 입력 시 아래쪽 셀로 연속 이동 */
+    function moveToBelowCell(colKey, r) {
+      const sheet = getActiveSheetObj();
+      if (r + 1 <= sheet.rowCount) {
+        const nextCellId = `${colKey}${r + 1}`;
+        const nextInput = document.querySelector(`input[data-id="${nextCellId}"]`);
+        if (nextInput) {
+          setTimeout(() => {
+            nextInput.focus();
+          }, 30);
+        }
+      }
+    }
+
+    function renderTable() {
+      const sheet = getActiveSheetObj();
+      if (!sheet.colTitles) sheet.colTitles = {};
+
+      const headerRow = document.getElementById('header-row');
+      headerRow.innerHTML = '<th class="header-btn sticky-col-0" style="width:32px; height:26px;"></th>';
+      
+      sheet.cols.forEach((colKey, idx) => {
+        const th = document.createElement('th');
+        let classes = `header-btn ${selectedTarget.type === 'col' && selectedTarget.id === colKey ? 'selected' : ''}`;
+        if (idx === 0) classes += ' sticky-col-1';
+        
+        th.className = classes;
+        th.innerText = sheet.colTitles[colKey] || colKey;
+        th.style.width = (store.colWidths[colKey] || 60) + 'px';
+        th.onclick = () => selectHeader('col', colKey);
+        headerRow.appendChild(th);
+      });
+
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      for (let r = 1; r <= sheet.rowCount; r++) {
+        const tr = document.createElement('tr');
+        tr.style.height = (store.rowHeights[r] || 28) + 'px';
+
+        const rowTh = document.createElement('th');
+        rowTh.className = `header-btn sticky-col-0 ${selectedTarget.type === 'row' && selectedTarget.id === r ? 'selected' : ''}`;
+        rowTh.innerText = r;
+        rowTh.onclick = () => selectHeader('row', r);
+        tr.appendChild(rowTh);
+
+        sheet.cols.forEach((colKey, idx) => {
+          const cellId = `${colKey}${r}`;
+          const td = document.createElement('td');
+          td.id = `td-${cellId}`;
+          if (idx === 0) td.className = 'sticky-col-1';
+
+          const input = document.createElement('input');
+          input.className = 'cell-input';
+          input.dataset.id = cellId;
+          input.setAttribute('enterkeyhint', 'down');
+
+          const cellData = sheet.data[cellId] || {};
+          input.value = cellData.title || '';
+
+          if (cellData.bgColor) {
+            td.style.backgroundColor = cellData.bgColor;
+          } else {
+            td.style.backgroundColor = '';
+          }
+
+          if (cellData.isSuper) {
+            td.classList.add('super-cell');
+            addBadge(td);
+          }
+
+          input.onfocus = () => selectCell(cellId);
+          input.oninput = (e) => {
+            if (!sheet.data[cellId]) sheet.data[cellId] = {};
+            sheet.data[cellId].title = e.target.value;
+            save();
+          };
+
+          let isMoving = false;
+          const handleEnterMove = (e) => {
+            if (isMoving) return;
+            if (e.key === 'Enter' || e.keyCode === 13) {
+              e.preventDefault();
+              isMoving = true;
+              moveToBelowCell(colKey, r);
+              setTimeout(() => { isMoving = false; }, 200);
+            }
+          };
+
+          input.addEventListener('keydown', handleEnterMove);
+          input.addEventListener('keyup', handleEnterMove);
+
+          td.appendChild(input);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      }
+    }
+
+    function exportRowData() {
+      let targetRow = null;
+      if (selectedTarget.type === 'row') {
+        targetRow = selectedTarget.id;
+      } else if (selectedTarget.type === 'cell') {
+        targetRow = selectedTarget.id.replace(/^[A-Z]+/, '');
+      }
+
+      if (!targetRow) {
+        return alert('출력할 행 번호(1, 2, 3...)를 먼저 선택해주세요.');
+      }
+
+      const sheet = getActiveSheetObj();
+      let rowParts = [];
+
+      sheet.cols.forEach(colKey => {
+        const cellId = `${colKey}${targetRow}`;
+        const colTitle = sheet.colTitles[colKey] || colKey;
+        const cellData = sheet.data[cellId] || {};
+        const cellVal = (cellData.title || '').trim();
+        const cellMemo = (cellData.memo || '').trim();
+
+        if (cellVal !== '' || cellMemo !== '') {
+          let str = `${colTitle} ${cellVal}`;
+          if (cellData.isSuper && cellMemo !== '') {
+            str += `(메모: ${cellMemo})`;
+          }
+          rowParts.push(str.trim());
+        }
+      });
+
+      const outputResult = rowParts.join(', ');
+      
+      document.getElementById('out-modal-title').innerText = `${targetRow}번 행 데이터 출력`;
+      document.getElementById('out-text').value = outputResult || '입력된 데이터가 없습니다.';
+      document.getElementById('out-modal').style.display = 'flex';
+    }
+
+    function copyOutText() {
+      const textarea = document.getElementById('out-text');
+      if (!textarea.value || textarea.value === '입력된 데이터가 없습니다.') return;
+
+      textarea.select();
+      textarea.setSelectionRange(0, 99999);
+
+      navigator.clipboard.writeText(textarea.value).then(() => {
+        alert('클립보드에 복사되었습니다.');
+      }).catch(err => {
+        document.execCommand('copy');
+        alert('클립보드에 복사되었습니다.');
+      });
+    }
+
+    function closeOutModal() {
+      document.getElementById('out-modal').style.display = 'none';
+    }
+
+    /* 랜덤 조합 관련 기능 */
+    function openRandomModal() {
+      const sheet = getActiveSheetObj();
+      const configContainer = document.getElementById('random-config-list');
+      configContainer.innerHTML = '';
+
+      sheet.cols.forEach(colKey => {
+        const titleName = sheet.colTitles[colKey] || colKey;
+        const colItem = document.createElement('div');
+        colItem.className = 'random-col-item';
+
+        let defaultMode = 'mandatory';
+        let defaultProb = 100;
+
+        if (colKey === 'A') {
+          defaultMode = 'optional';
+          defaultProb = 10;
+        } else if (colKey === 'B') {
+          defaultMode = 'optional';
+          defaultProb = 30;
+        }
+
+        colItem.innerHTML = `
+          <span style="font-weight:bold; min-width:60px;">${colKey}열 (${titleName})</span>
+          <select id="rand-mode-${colKey}" onchange="toggleProbInput('${colKey}')">
+            <option value="mandatory" ${defaultMode === 'mandatory' ? 'selected' : ''}>무조건 1개</option>
+            <option value="optional" ${defaultMode === 'optional' ? 'selected' : ''}>선택적 (안 나올 수도 있음)</option>
+          </select>
+          <div id="rand-prob-wrap-${colKey}" style="display:${defaultMode === 'optional' ? 'inline-flex' : 'none'}; align-items:center; gap:2px;">
+            <input type="number" id="rand-prob-${colKey}" value="${defaultProb}" min="0" max="100" style="width:45px;"> %
+          </div>
+        `;
+        configContainer.appendChild(colItem);
+      });
+
+      document.getElementById('random-text').value = '';
+      document.getElementById('random-modal').style.display = 'flex';
+    }
+
+    function toggleProbInput(colKey) {
+      const mode = document.getElementById(`rand-mode-${colKey}`).value;
+      const probWrap = document.getElementById(`rand-prob-wrap-${colKey}`);
+      probWrap.style.display = (mode === 'optional') ? 'inline-flex' : 'none';
+    }
+
+    function closeRandomModal() {
+      document.getElementById('random-modal').style.display = 'none';
+    }
+
+    function generateRandomCombination() {
+      const sheet = getActiveSheetObj();
+      let randomResults = [];
+
+      sheet.cols.forEach(colKey => {
+        const modeEl = document.getElementById(`rand-mode-${colKey}`);
+        if (!modeEl) return;
+
+        const mode = modeEl.value;
+        const prob = parseFloat(document.getElementById(`rand-prob-${colKey}`)?.value || 100);
+
+        if (mode === 'optional') {
+          const randRoll = Math.random() * 100;
+          if (randRoll >= prob) {
+            return;
+          }
+        }
+
+        let validValues = [];
+        for (let r = 1; r <= sheet.rowCount; r++) {
+          const cellId = `${colKey}${r}`;
+          const val = (sheet.data[cellId]?.title || '').trim();
+          if (val !== '') {
+            validValues.push(val);
+          }
+        }
+
+        if (validValues.length > 0) {
+          const randomIndex = Math.floor(Math.random() * validValues.length);
+          randomResults.push(validValues[randomIndex]);
+        }
+      });
+
+      const textarea = document.getElementById('random-text');
+      if (randomResults.length > 0) {
+        textarea.value = randomResults.join(' ');
+      } else {
+        textarea.value = '추출된 데이터가 없거나 조건에 해당하는 데이터가 없습니다.';
+      }
+    }
+
+    function copyRandomText() {
+      const textarea = document.getElementById('random-text');
+      if (!textarea.value || textarea.value.startsWith('추출된 데이터가 없거나')) return;
+
+      textarea.select();
+      textarea.setSelectionRange(0, 99999);
+
+      navigator.clipboard.writeText(textarea.value).then(() => {
+        alert('클립보드에 복사되었습니다.');
+      }).catch(err => {
+        document.execCommand('copy');
+        alert('클립보드에 복사되었습니다.');
+      });
+    }
+
+    function changeCellBgColor() {
+      const { type, id } = selectedTarget;
+      if (!type) return alert('색상을 변경할 셀, 행, 또는 열을 먼저 선택하세요.');
+
+      const sheet = getActiveSheetObj();
+      let targetIds = [];
+
+      if (type === 'cell') {
+        targetIds.push(id);
+      } else if (type === 'col') {
+        for (let r = 1; r <= sheet.rowCount; r++) targetIds.push(`${id}${r}`);
+      } else if (type === 'row') {
+        sheet.cols.forEach(c => targetIds.push(`${c}${id}`));
+      }
+
+      const currentColor = sheet.data[targetIds[0]]?.bgColor || '#222222';
+      const newColor = prompt('변경할 셀 배경색 헥사코드(예: #0055fe 또는 지우려면 빈칸):', currentColor);
+
+      if (newColor !== null) {
+        const colorVal = newColor.trim();
+        targetIds.forEach(cellId => {
+          if (!sheet.data[cellId]) sheet.data[cellId] = {};
+          if (colorVal === '') {
+            delete sheet.data[cellId].bgColor;
+          } else {
+            sheet.data[cellId].bgColor = colorVal;
+          }
+        });
+        save();
+        renderTable();
+      }
+    }
+
+    function sortColumn(order) {
+      if (selectedTarget.type !== 'col') {
+        return alert('정렬할 열 제목(A, B, C...)을 먼저 선택해 주세요.');
+      }
+
+      const targetCol = selectedTarget.id;
+      const sheet = getActiveSheetObj();
+      
+      let rowsData = [];
+      for (let r = 1; r <= sheet.rowCount; r++) {
+        let rowObj = { rowIndex: r, cells: {} };
+        sheet.cols.forEach(col => {
+          const cellId = `${col}${r}`;
+          rowObj.cells[col] = sheet.data[cellId] ? { ...sheet.data[cellId] } : {};
+        });
+        rowsData.push(rowObj);
+      }
+
+      rowsData.sort((a, b) => {
+        const valA = (a.cells[targetCol]?.title || '').trim();
+        const valB = (b.cells[targetCol]?.title || '').trim();
+
+        if (valA === '' && valB === '') return 0;
+        if (valA === '') return 1;
+        if (valB === '') return -1;
+
+        const numA = Number(valA);
+        const numB = Number(valB);
+        const isNumA = !isNaN(numA) && valA !== '';
+        const isNumB = !isNaN(numB) && valB !== '';
+
+        let result = 0;
+        if (isNumA && isNumB) {
+          result = numA - numB;
+        } else {
+          result = valA.localeCompare(valB, 'ko-KR', { numeric: true });
+        }
+
+        return order === 'asc' ? result : -result;
+      });
+
+      let newData = {};
+      rowsData.forEach((rowObj, newRIndex) => {
+        const r = newRIndex + 1;
+        sheet.cols.forEach(col => {
+          const cellId = `${col}${r}`;
+          if (rowObj.cells[col] && Object.keys(rowObj.cells[col]).length > 0) {
+            newData[cellId] = rowObj.cells[col];
+          }
+        });
+      });
+
+      sheet.data = newData;
+      save();
+      renderTable();
+    }
+
+    function openSearchModal() {
+      document.getElementById('search-modal').style.display = 'flex';
+      const input = document.getElementById('search-keyword');
+      input.value = '';
+      input.focus();
+      document.getElementById('search-results').innerHTML = '<div style="padding:12px; text-align:center; color:#888;">검색어를 입력하세요.</div>';
+    }
+
+    function closeSearchModal() {
+      document.getElementById('search-modal').style.display = 'none';
+    }
+
+    function executeSearch() {
+      const keyword = document.getElementById('search-keyword').value.trim().toLowerCase();
+      const resultsContainer = document.getElementById('search-results');
+      resultsContainer.innerHTML = '';
+
+      if (!keyword) {
+        resultsContainer.innerHTML = '<div style="padding:12px; text-align:center; color:#888;">검색어를 입력하세요.</div>';
+        return;
+      }
+
+      const sheet = getActiveSheetObj();
+      let matches = [];
+
+      for (let r = 1; r <= sheet.rowCount; r++) {
+        sheet.cols.forEach(col => {
+          const cellId = `${col}${r}`;
+          const cellData = sheet.data[cellId];
+          if (cellData) {
+            const titleMatch = cellData.title && cellData.title.toLowerCase().includes(keyword);
+            const memoMatch = cellData.memo && cellData.memo.toLowerCase().includes(keyword);
+
+            if (titleMatch || memoMatch) {
+              matches.push({
+                cellId,
+                title: cellData.title || '',
+                memo: cellData.memo || '',
+                isSuper: cellData.isSuper
+              });
+            }
+          }
+        });
+      }
+
+      if (matches.length === 0) {
+        resultsContainer.innerHTML = '<div style="padding:12px; text-align:center; color:#888;">검색 결과가 없습니다.</div>';
+        return;
+      }
+
+      matches.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'search-item';
+        
+        let subText = m.title;
+        if (m.memo) subText += ` [메모: ${m.memo.substring(0, 15)}...]`;
+
+        item.innerHTML = `
+          <span>${subText}</span>
+          <span class="cell-loc" style="font-weight:bold; color:#888;">${m.cellId} ${m.isSuper ? '(SC)' : ''}</span>
+        `;
+        item.onclick = () => {
+          closeSearchModal();
+          focusCell(m.cellId);
+        };
+        resultsContainer.appendChild(item);
+      });
+    }
+
+    function focusCell(cellId) {
+      const targetInput = document.querySelector(`input[data-id="${cellId}"]`);
+      if (targetInput) {
+        targetInput.focus();
+        targetInput.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      }
+    }
+
+    function renameHeader() {
+      if (selectedTarget.type !== 'col') return alert('열을 먼저 선택하세요.');
+      const sheet = getActiveSheetObj();
+      const currentName = sheet.colTitles[selectedTarget.id] || selectedTarget.id;
+      const newName = prompt(`'${selectedTarget.id}' 열 이름:`, currentName);
+      if (newName !== null) {
+        sheet.colTitles[selectedTarget.id] = newName.trim();
+        save();
+        renderTable();
+      }
+    }
+
+    function selectCell(cellId) {
+      selectedTarget = { type: 'cell', id: cellId };
+      const sheet = getActiveSheetObj();
+      const cellData = sheet.data[cellId];
+      document.getElementById('memo-btn').style.display = cellData?.isSuper ? 'inline-block' : 'none';
+    }
+
+    function selectHeader(type, id) {
+      selectedTarget = { type, id };
+      document.getElementById('memo-btn').style.display = 'none';
+      renderTable();
+    }
+
+    function addRow() {
+      const sheet = getActiveSheetObj();
+      sheet.rowCount += 1;
+      save();
+      renderTable();
+    }
+
+    function removeRow() {
+      const sheet = getActiveSheetObj();
+      if (selectedTarget.type === 'row') {
+        const targetRow = selectedTarget.id;
+        sheet.rowCount = Math.max(1, sheet.rowCount - 1);
+        for (let r = targetRow; r <= sheet.rowCount; r++) {
+          sheet.cols.forEach(c => { sheet.data[`${c}${r}`] = sheet.data[`${c}${r+1}`]; });
+        }
+        selectedTarget = { type: null, id: null };
+      } else {
+        sheet.rowCount = Math.max(1, sheet.rowCount - 1);
+      }
+      save();
+      renderTable();
+    }
+
+    function addCol() {
+      const sheet = getActiveSheetObj();
+      let nextColName = 'A';
+      if (sheet.cols.length > 0) {
+        const lastCol = sheet.cols[sheet.cols.length - 1];
+        nextColName = String.fromCharCode(lastCol.charCodeAt(0) + 1);
+      }
+      sheet.cols.push(nextColName);
+      save();
+      renderTable();
+    }
+
+    function removeCol() {
+      const sheet = getActiveSheetObj();
+      if (sheet.cols.length <= 1) return alert('최소 1개 유지');
+      if (selectedTarget.type === 'col') {
+        const targetCol = selectedTarget.id;
+        sheet.cols = sheet.cols.filter(c => c !== targetCol);
+        selectedTarget = { type: null, id: null };
+      } else {
+        sheet.cols.pop();
+      }
+      save();
+      renderTable();
+    }
+
+    function moveSelected(direction) {
+      const { type, id } = selectedTarget;
+      if (!type || type === 'cell') return alert('행 또는 열 선택 필요');
+      const sheet = getActiveSheetObj();
+
+      if (type === 'col') {
+        const idx = sheet.cols.indexOf(id);
+        if (idx === -1) return;
+        const targetIdx = direction === 'prev' ? idx - 1 : idx + 1;
+
+        if (targetIdx >= 0 && targetIdx < sheet.cols.length) {
+          const temp = sheet.cols[idx];
+          sheet.cols[idx] = sheet.cols[targetIdx];
+          sheet.cols[targetIdx] = temp;
+          save();
+          renderTable();
+        }
+      } else if (type === 'row') {
+        const r = parseInt(id);
+        const targetR = direction === 'prev' ? r - 1 : r + 1;
+
+        if (targetR >= 1 && targetR <= sheet.rowCount) {
+          sheet.cols.forEach(c => {
+            const cellA = `${c}${r}`;
+            const cellB = `${c}${targetR}`;
+            const temp = sheet.data[cellA];
+            sheet.data[cellA] = sheet.data[cellB];
+            sheet.data[cellB] = temp;
+          });
+          selectedTarget.id = targetR;
+          save();
+          renderTable();
+        }
+      }
+    }
+
+    function toggleSuperTarget() {
+      const { type, id } = selectedTarget;
+      if (!type) return alert('셀, 행 또는 열 선택 필요');
+
+      const sheet = getActiveSheetObj();
+      let targetIds = [];
+
+      if (type === 'cell') targetIds.push(id);
+      else if (type === 'col') {
+        for (let r = 1; r <= sheet.rowCount; r++) targetIds.push(`${id}${r}`);
+      } else if (type === 'row') {
+        sheet.cols.forEach(c => targetIds.push(`${c}${id}`));
+      }
+
+      const firstData = sheet.data[targetIds[0]] || {};
+      const nextState = !firstData.isSuper;
+
+      targetIds.forEach(cellId => {
+        if (!sheet.data[cellId]) sheet.data[cellId] = {};
+        sheet.data[cellId].isSuper = nextState;
+
+        const td = document.getElementById(`td-${cellId}`);
+        if (td) {
+          if (nextState) {
+            td.classList.add('super-cell');
+            addBadge(td);
+          } else {
+            td.classList.remove('super-cell');
+            removeBadge(td);
+          }
+        }
+      });
+
+      save();
+      if (type === 'cell') selectCell(id);
+    }
+
+    function resizeSelected() {
+      const { type, id } = selectedTarget;
+      if (type === 'col') {
+        const val = prompt(`${id}열 너비(px):`, store.colWidths[id] || 60);
+        if (val) { store.colWidths[id] = parseInt(val); save(); renderTable(); }
+      } else if (type === 'row') {
+        const val = prompt(`${id}행 높이(px):`, store.rowHeights[id] || 28);
+        if (val) { store.rowHeights[id] = parseInt(val); save(); renderTable(); }
+      } else {
+        alert('행 또는 열 선택 필요');
+      }
+    }
+
+    function addBadge(td) {
+      if (!td.querySelector('.super-badge')) {
+        const b = document.createElement('span');
+        b.className = 'super-badge';
+        b.innerText = 'S';
+        td.appendChild(b);
+      }
+    }
+
+    function removeBadge(td) {
+      const b = td.querySelector('.super-badge');
+      if (b) b.remove();
+    }
+
+    function addSheet() {
+      const name = prompt('시트 이름:');
+      if (name && !store.sheets[name]) {
+        store.sheets[name] = { cols: [...DEFAULT_COLS], colTitles: {}, rowCount: 300, data: {} };
+        store.sheetOrder.push(name);
+        store.activeSheet = name;
+        save();
+        renderTabs();
+        renderTable();
+      }
+    }
+
+    function renameCurrentSheet() {
+      const oldName = store.activeSheet;
+      const newName = prompt(`'${oldName}' 시트 새 이름:`, oldName);
+      if (newName && newName !== oldName) {
+        if (store.sheets[newName]) return alert('중복된 이름');
+        store.sheets[newName] = store.sheets[oldName];
+        delete store.sheets[oldName];
+        
+        const idx = store.sheetOrder.indexOf(oldName);
+        if (idx !== -1) store.sheetOrder[idx] = newName;
+        
+        store.activeSheet = newName;
+        save();
+        renderTabs();
+        renderTable();
+      }
+    }
+
+    function moveSheet(direction) {
+      const idx = store.sheetOrder.indexOf(store.activeSheet);
+      if (idx === -1) return;
+      const targetIdx = direction === 'prev' ? idx - 1 : idx + 1;
+
+      if (targetIdx >= 0 && targetIdx < store.sheetOrder.length) {
+        const temp = store.sheetOrder[idx];
+        store.sheetOrder[idx] = store.sheetOrder[targetIdx];
+        store.sheetOrder[targetIdx] = temp;
+        save();
+        renderTabs();
+      }
+    }
+
+    function deleteCurrentSheet() {
+      if (store.sheetOrder.length <= 1) return alert('최소 1개 시트 유지');
+      if (confirm(`'${store.activeSheet}' 시트를 삭제하시겠습니까?`)) {
+        delete store.sheets[store.activeSheet];
+        store.sheetOrder = store.sheetOrder.filter(n => n !== store.activeSheet);
+        store.activeSheet = store.sheetOrder[0];
+        save();
+        renderTabs();
+        renderTable();
+      }
+    }
+
+    function switchSheet(name) {
+      store.activeSheet = name;
+      selectedTarget = { type: null, id: null };
+      save();
+      renderTabs();
+      renderTable();
+    }
+
+    function openSuperMemo() {
+      const { type, id } = selectedTarget;
+      if (type !== 'cell') return;
+      const sheet = getActiveSheetObj();
+      const cellData = sheet.data[id];
+      if (!cellData?.isSuper) return;
+
+      const cellText = cellData.title ? ` ${cellData.title}` : '';
+      document.getElementById('modal-title').innerText = `${id}${cellText}`;
+      document.getElementById('memo-text').value = cellData.memo || '';
+      document.getElementById('memo-modal').style.display = 'flex';
+    }
+
+    function closeSuperMemo() {
+      const { id } = selectedTarget;
+      if (id) {
+        const sheet = getActiveSheetObj();
+        if (!sheet.data[id]) sheet.data[id] = {};
+        sheet.data[id].memo = document.getElementById('memo-text').value;
+        save();
+      }
+      document.getElementById('memo-modal').style.display = 'none';
+    }
+
+    function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+    function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+
+    function exportJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `mini_excel_backup_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const imported = JSON.parse(evt.target.result);
+          if (imported && imported.sheets) {
+            store = imported;
+            if (!store.sheetOrder) store.sheetOrder = Object.keys(store.sheets);
+            if (!store.settings) store.settings = DEFAULT_STORE.settings;
+            save();
+            applyTheme();
+            renderTabs();
+            renderTable();
+            alert('데이터 복원 완료');
+            closeSettings();
+          } else {
+            alert('올바르지 않은 백업 파일');
+          }
+        } catch (err) {
+          alert('JSON 오류: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllData() {
+      if (confirm('모든 데이터를 삭제하시겠습니까?')) {
+        localStorage.removeItem('mini_excel_v4');
+        store = JSON.parse(JSON.stringify(DEFAULT_STORE));
+        save();
+        applyTheme();
+        renderTabs();
+        renderTable();
+        alert('초기화 완료');
+        closeSettings();
+      }
+    }
+
+    /* 페이지 초기 시작 실행 */
+    applyTheme();
+    renderTabs();
+    renderTable();
+  </script>
+</body>
+</html>
