@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LOG</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #000000; color: #ffffff; padding: 20px 16px; min-height: 100vh; display: flex; flex-direction: column; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .logo { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+    .nav-buttons { display: flex; gap: 6px; }
+    .btn-text { background: #121212; color: #ffffff; border: 1px solid #2a2a2a; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+    
+    .input-section { margin-bottom: 12px; }
+    .log-input { width: 100%; background: #121212; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; color: #ffffff; font-size: 15px; outline: none; }
+    
+    .keyword-group { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 8px; }
+    .keyword-btn { background: #1a1a1a; color: #ffffff; border: 1px solid #333333; padding: 10px 14px; border-radius: 8px; font-size: 13px; flex-shrink: 0; cursor: pointer; }
+    .insert-btn { background: #121212; color: #888; border: 1px solid #222; padding: 8px 12px; border-radius: 8px; font-size: 13px; flex-shrink: 0; cursor: pointer; }
+
+    .today-log-container { height: 154px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .log-item { display: flex; align-items: center; justify-content: space-between; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; padding: 0 12px; height: 46px; flex-shrink: 0; gap: 8px; }
+    .log-item-content { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+    .log-item-meta { font-size: 11px; color: #666; white-space: nowrap; }
+    .del-btn { background: none; border: none; color: #444; font-size: 13px; padding: 4px; cursor: pointer; }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 100; padding: 20px; overflow-y: auto; }
+    .modal.active { display: block; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .close-btn { background: #121212; color: #fff; border: 1px solid #333; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    
+    .settings-section { margin-bottom: 30px; border-bottom: 1px solid #1e1e1e; padding-bottom: 20px; }
+    .settings-label { font-size: 14px; margin-bottom: 10px; display: block; font-weight: bold; }
+    .kw-manage-item { display: flex; align-items: center; justify-content: space-between; background: #121212; border: 1px solid #1e1e1e; padding: 8px; margin-bottom: 6px; border-radius: 6px; }
+    .sm-btn { background: #1a1a1a; color: #ccc; border: 1px solid #333; padding: 4px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; }
+    .kw-input { width: 100%; background: #121212; border: 1px solid #2a2a2a; padding: 8px; color: #fff; border-radius: 6px; margin-bottom: 8px; }
+    .action-btn { width: 100%; background: #121212; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 8px; margin-bottom: 8px; }
+    .danger { color: #f55; border-color: #522; }
+  </style>
+</head>
+<body>
+
+  <!-- 파일 업로드를 위한 보이지 않는 입력 요소 -->
+  <input type="file" id="fileInput" accept=".json" style="opacity: 0; position: absolute; z-index: -1;" onchange="importJSON(event)">
+
+  <header>
+    <div class="logo">LOG</div>
+    <div class="nav-buttons">
+      <button class="btn-text" onclick="openModal('dateModal')">날짜</button>
+      <button class="btn-text" onclick="openModal('viewModal')">보기</button>
+      <button class="btn-text" onclick="openModal('settingsModal')">설정</button>
+    </div>
+  </header>
+
+  <form id="logForm" class="input-section">
+    <input type="text" id="logInput" class="log-input" placeholder="내용 입력 후 엔터" autocomplete="off">
+  </form>
+
+  <div id="keywordGroup" class="keyword-group"></div>
+  <div id="insertGroup" class="keyword-group"></div>
+
+  <div id="todayLogList" class="today-log-container"></div>
+
+  <!-- 모달들 -->
+  <div id="viewModal" class="modal"><div class="modal-header"><div class="modal-title">전체 보기</div><button class="close-btn" onclick="closeModal('viewModal')">닫기</button></div><input type="text" id="searchInput" class="kw-input" placeholder="검색..." oninput="renderSearchLogs()"><div id="searchResultsList"></div></div>
+  <div id="dateModal" class="modal"><div class="modal-header"><div class="modal-title">날짜별 조회</div><button class="close-btn" onclick="closeModal('dateModal')">닫기</button></div><input type="date" id="datePicker" class="kw-input" onchange="renderDateLogs()"><div id="dateResultsList"></div></div>
+  
+  <div id="settingsModal" class="modal">
+    <div class="modal-header"><div class="modal-title">설정</div><button class="close-btn" onclick="closeModal('settingsModal')">닫기</button></div>
+    <div class="settings-section">
+      <span class="settings-label">기록 키워드 관리</span>
+      <div id="kwManageList"></div>
+      <input type="text" id="newKwInput" class="kw-input" placeholder="추가할 키워드">
+      <button class="action-btn" onclick="addKeyword('log')">추가</button>
+    </div>
+    <div class="settings-section">
+      <span class="settings-label">퀵 키워드 관리</span>
+      <div id="insManageList"></div>
+      <input type="text" id="newInsInput" class="kw-input" placeholder="추가할 키워드">
+      <button class="action-btn" onclick="addKeyword('ins')">추가</button>
+    </div>
+    <div class="settings-section">
+      <button class="action-btn" onclick="exportJSON()">JSON 내보내기</button>
+      <button class="action-btn" onclick="document.getElementById('fileInput').click()">JSON 불러오기</button>
+      <button class="action-btn danger" onclick="clearAllData()">데이터 전체 삭제</button>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_KWS = ["출근", "퇴근", "외근"];
+    const DEFAULT_INS = ["원", "식사", "회의"];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('datePicker').value = new Date().toISOString().split('T')[0];
+      renderAll();
+    });
+
+    function getS(key) { return JSON.parse(localStorage.getItem(key) || 'null'); }
+    function setS(key, val) { localStorage.setItem(key, JSON.stringify(val)); renderAll(); }
+
+    function renderAll() {
+      renderMain();
+      renderSettings();
+      renderTodayLogs();
+    }
+
+    function renderMain() {
+      const kws = getS('app_keywords') || DEFAULT_KWS;
+      const ins = getS('app_ins_keywords') || DEFAULT_INS;
+      document.getElementById('keywordGroup').innerHTML = kws.map(k => `<button class="keyword-btn" onclick="createLog('${k}')">${k}</button>`).join('');
+      document.getElementById('insertGroup').innerHTML = ins.map(i => `<button class="insert-btn" onclick="insertToInput('${i}')">${i}</button>`).join('');
+    }
+
+    function insertToInput(text) {
+      const input = document.getElementById('logInput');
+      input.value += text;
+      input.focus();
+    }
+
+    function createLog(text) {
+      const d = new Date();
+      const timeStr = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}분`;
+      const dateStr = d.toISOString().split('T')[0];
+      
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          saveLog({ id: Date.now(), text, time: timeStr, date: dateStr, location: `(${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})` });
+        }, () => saveLog({ id: Date.now(), text, time: timeStr, date: dateStr, location: '(위치 거부)' }));
+      } else {
+        saveLog({ id: Date.now(), text, time: timeStr, date: dateStr, location: '(미지원)' });
+      }
+    }
+
+    function saveLog(obj) {
+      const logs = getS('app_logs') || [];
+      logs.unshift(obj);
+      setS('app_logs', logs);
+    }
+
+    document.getElementById('logForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('logInput');
+      if(input.value) createLog(input.value);
+      input.value = '';
+    });
+
+    function renderTodayLogs() {
+      const logs = getS('app_logs') || [];
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('todayLogList').innerHTML = logs.filter(l => l.date === today).map(l => `
+        <div class="log-item"><div class="log-item-content">${l.text}</div><div class="log-item-meta">${l.time} | ${l.location}</div><button class="del-btn" onclick="deleteLog(${l.id})">X</button></div>
+      `).join('');
+    }
+
+    function deleteLog(id) {
+      setS('app_logs', (getS('app_logs') || []).filter(l => l.id !== id));
+    }
+
+    function renderSearchLogs() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const logs = getS('app_logs') || [];
+      document.getElementById('searchResultsList').innerHTML = logs.filter(l => l.text.toLowerCase().includes(query)).map(l => `
+        <div class="log-item"><div class="log-item-content">${l.text}</div><div class="log-item-meta">${l.time} | ${l.location}</div><button class="del-btn" onclick="deleteLog(${l.id})">X</button></div>
+      `).join('');
+    }
+
+    function renderDateLogs() {
+      const selected = document.getElementById('datePicker').value;
+      const logs = getS('app_logs') || [];
+      document.getElementById('dateResultsList').innerHTML = logs.filter(l => l.date === selected).map(l => `
+        <div class="log-item"><div class="log-item-content">${l.text}</div><div class="log-item-meta">${l.time} | ${l.location}</div><button class="del-btn" onclick="deleteLog(${l.id})">X</button></div>
+      `).join('');
+    }
+
+    function renderSettings() {
+      const kws = getS('app_keywords') || DEFAULT_KWS;
+      const ins = getS('app_ins_keywords') || DEFAULT_INS;
+      document.getElementById('kwManageList').innerHTML = kws.map((item, i) => `<div class="kw-manage-item"><span>${item}</span><div><button class="sm-btn" onclick="move('app_keywords',${i},-1)">▲</button><button class="sm-btn" onclick="move('app_keywords',${i},1)">▼</button><button class="sm-btn" onclick="remove('app_keywords',${i})">X</button></div></div>`).join('');
+      document.getElementById('insManageList').innerHTML = ins.map((item, i) => `<div class="kw-manage-item"><span>${item}</span><div><button class="sm-btn" onclick="move('app_ins_keywords',${i},-1)">▲</button><button class="sm-btn" onclick="move('app_ins_keywords',${i},1)">▼</button><button class="sm-btn" onclick="remove('app_ins_keywords',${i})">X</button></div></div>`).join('');
+    }
+
+    function addKeyword(type) {
+      const key = type === 'log' ? 'app_keywords' : 'app_ins_keywords';
+      const input = document.getElementById(type === 'log' ? 'newKwInput' : 'newInsInput');
+      if(input.value) {
+        const arr = getS(key) || (type === 'log' ? DEFAULT_KWS : DEFAULT_INS);
+        arr.push(input.value);
+        setS(key, arr);
+        input.value = '';
+      }
+    }
+
+    function remove(key, idx) { const arr = getS(key); arr.splice(idx, 1); setS(key, arr); }
+    function move(key, idx, dir) { const arr = getS(key); const target = idx + dir; if(target >=0 && target < arr.length) { [arr[idx], arr[target]] = [arr[target], arr[idx]]; setS(key, arr); } }
+
+    function exportJSON() {
+      const data = JSON.stringify(getS('app_logs') || []);
+      const blob = new Blob([data], {type: 'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'log_backup.json'; a.click();
+    }
+
+    function importJSON(e) {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          setS('app_logs', JSON.parse(ev.target.result));
+          alert('데이터를 성공적으로 불러왔습니다.');
+        } catch(e) { alert('파일 형식이 올바르지 않습니다.'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllData() { if(confirm('전체 삭제하시겠습니까?')) { localStorage.removeItem('app_logs'); renderAll(); } }
+    function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='viewModal') renderSearchLogs(); if(id==='dateModal') renderDateLogs(); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+  </script>
+</body>
+</html>
