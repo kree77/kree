@@ -1371,6 +1371,63 @@
       }
     }
 
+    /* 구글 스프레드시트 / 엑셀 여러 셀 복사 & 붙여넣기 지원 */
+    document.addEventListener('paste', function(e) {
+      const activeEl = document.activeElement;
+      if (!activeEl || !activeEl.classList.contains('cell-input')) return;
+
+      const startCellId = activeEl.dataset.id;
+      if (!startCellId) return;
+
+      const clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+      if (!clipboardData) return;
+
+      const rows = clipboardData.split(/\r\n|\n|\r/);
+      if (rows.length === 1 && !rows[0].includes('\t')) return;
+
+      e.preventDefault();
+
+      const sheet = getActiveSheetObj();
+      
+      const match = startCellId.match(/^([A-Z]+)(\d+)$/);
+      if (!match) return;
+
+      const startColStr = match[1];
+      const startRow = parseInt(match[2], 10);
+      const startColIndex = sheet.cols.indexOf(startColStr);
+
+      if (startColIndex === -1) return;
+
+      rows.forEach((rowText, rIdx) => {
+        if (rowText === '' && rIdx === rows.length - 1) return;
+        const cells = rowText.split('\t');
+        const targetRow = startRow + rIdx;
+
+        if (targetRow > sheet.rowCount) {
+          sheet.rowCount = targetRow;
+        }
+
+        cells.forEach((cellVal, cIdx) => {
+          const targetColIndex = startColIndex + cIdx;
+          if (targetColIndex < sheet.cols.length) {
+            const targetColStr = sheet.cols[targetColIndex];
+            const targetCellId = `${targetColStr}${targetRow}`;
+
+            if (!sheet.data[targetCellId]) sheet.data[targetCellId] = {};
+            sheet.data[targetCellId].title = cellVal;
+          }
+        });
+      });
+
+      save();
+      renderTable();
+
+      setTimeout(() => {
+        const nextInput = document.querySelector(`input[data-id="${startCellId}"]`);
+        if (nextInput) nextInput.focus();
+      }, 50);
+    });
+
     /* 페이지 초기 시작 실행 */
     applyTheme();
     renderTabs();
