@@ -16,9 +16,10 @@
     .input-section { margin-bottom: 12px; }
     .log-input { width: 100%; background: #121212; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; color: #ffffff; font-size: 15px; outline: none; }
     
-    .keyword-group { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 8px; }
-    .keyword-btn { background: #1a1a1a; color: #ffffff; border: 1px solid #333333; padding: 10px 14px; border-radius: 8px; font-size: 13px; flex-shrink: 0; cursor: pointer; }
-    .insert-btn { background: #121212; color: #888; border: 1px solid #222; padding: 8px 12px; border-radius: 8px; font-size: 13px; flex-shrink: 0; cursor: pointer; }
+    /* 키워드 영역: 가로 스크롤 제거, 한 줄 넘어가면 자동 줄바꿈(flex-wrap) */
+    .keyword-group { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .keyword-btn { background: #1a1a1a; color: #ffffff; border: 1px solid #333333; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+    .insert-btn { background: #121212; color: #888; border: 1px solid #222; padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; }
 
     .today-log-container { height: 154px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
     .log-item { display: flex; align-items: center; justify-content: space-between; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; padding: 0 12px; height: 46px; flex-shrink: 0; gap: 8px; }
@@ -31,18 +32,20 @@
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .close-btn { background: #121212; color: #fff; border: 1px solid #333; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
     
-    .settings-section { margin-bottom: 30px; border-bottom: 1px solid #1e1e1e; padding-bottom: 20px; }
-    .settings-label { font-size: 14px; margin-bottom: 10px; display: block; font-weight: bold; }
+    .settings-section { margin-bottom: 24px; border-bottom: 1px solid #1e1e1e; padding-bottom: 20px; }
+    .settings-label { font-size: 13px; color: #aaaaaa; margin-bottom: 8px; display: block; font-weight: bold; }
+    .memo-textarea { width: 100%; height: 90px; background: #121212; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; resize: none; outline: none; margin-bottom: 6px; }
+    
     .kw-manage-item { display: flex; align-items: center; justify-content: space-between; background: #121212; border: 1px solid #1e1e1e; padding: 8px; margin-bottom: 6px; border-radius: 6px; }
     .sm-btn { background: #1a1a1a; color: #ccc; border: 1px solid #333; padding: 4px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; }
-    .kw-input { width: 100%; background: #121212; border: 1px solid #2a2a2a; padding: 8px; color: #fff; border-radius: 6px; margin-bottom: 8px; }
-    .action-btn { width: 100%; background: #121212; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 8px; margin-bottom: 8px; }
+    .kw-input { width: 100%; background: #121212; border: 1px solid #2a2a2a; padding: 8px; color: #fff; border-radius: 6px; margin-bottom: 8px; outline: none; }
+    .action-btn { width: 100%; background: #121212; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
     .danger { color: #f55; border-color: #522; }
   </style>
 </head>
 <body>
 
-  <!-- 파일 업로드를 위한 보이지 않는 입력 요소 -->
+  <!-- 숨겨진 파일 수신 객체 -->
   <input type="file" id="fileInput" accept=".json" style="opacity: 0; position: absolute; z-index: -1;" onchange="importJSON(event)">
 
   <header>
@@ -58,31 +61,55 @@
     <input type="text" id="logInput" class="log-input" placeholder="내용 입력 후 엔터" autocomplete="off">
   </form>
 
+  <!-- 줄바꿈 지원하는 키워드 그룹 -->
   <div id="keywordGroup" class="keyword-group"></div>
   <div id="insertGroup" class="keyword-group"></div>
 
   <div id="todayLogList" class="today-log-container"></div>
 
-  <!-- 모달들 -->
-  <div id="viewModal" class="modal"><div class="modal-header"><div class="modal-title">전체 보기</div><button class="close-btn" onclick="closeModal('viewModal')">닫기</button></div><input type="text" id="searchInput" class="kw-input" placeholder="검색..." oninput="renderSearchLogs()"><div id="searchResultsList"></div></div>
-  <div id="dateModal" class="modal"><div class="modal-header"><div class="modal-title">날짜별 조회</div><button class="close-btn" onclick="closeModal('dateModal')">닫기</button></div><input type="date" id="datePicker" class="kw-input" onchange="renderDateLogs()"><div id="dateResultsList"></div></div>
+  <!-- 보기 모달 -->
+  <div id="viewModal" class="modal">
+    <div class="modal-header"><div class="modal-title">전체 보기</div><button class="close-btn" onclick="closeModal('viewModal')">닫기</button></div>
+    <input type="text" id="searchInput" class="kw-input" placeholder="검색..." oninput="renderSearchLogs()">
+    <div id="searchResultsList"></div>
+  </div>
+
+  <!-- 날짜 모달 -->
+  <div id="dateModal" class="modal">
+    <div class="modal-header"><div class="modal-title">날짜별 조회</div><button class="close-btn" onclick="closeModal('dateModal')">닫기</button></div>
+    <input type="date" id="datePicker" class="kw-input" onchange="renderDateLogs()">
+    <div id="dateResultsList"></div>
+  </div>
   
+  <!-- 설정 모달 -->
   <div id="settingsModal" class="modal">
     <div class="modal-header"><div class="modal-title">설정</div><button class="close-btn" onclick="closeModal('settingsModal')">닫기</button></div>
+    
+    <!-- 1. 제미나이 인식용 메모 (설정 첫번째 항목) -->
+    <div class="settings-section">
+      <span class="settings-label">제미나이 안내 메모 (System Prompt)</span>
+      <textarea id="aiMemoInput" class="memo-textarea" placeholder="JSON 생성 시 상단에 포함할 메모를 적으세요. 예: 이 데이터는 저의 일상 기록입니다. 패턴을 분석해 주세요." onchange="saveAiMemo()"></textarea>
+      <button class="sm-btn" style="width:100%; padding: 6px;" onclick="saveAiMemo()">메모 저장</button>
+    </div>
+
+    <!-- 2. 키워드 관리 -->
     <div class="settings-section">
       <span class="settings-label">기록 키워드 관리</span>
       <div id="kwManageList"></div>
       <input type="text" id="newKwInput" class="kw-input" placeholder="추가할 키워드">
       <button class="action-btn" onclick="addKeyword('log')">추가</button>
     </div>
+
     <div class="settings-section">
       <span class="settings-label">퀵 키워드 관리</span>
       <div id="insManageList"></div>
       <input type="text" id="newInsInput" class="kw-input" placeholder="추가할 키워드">
       <button class="action-btn" onclick="addKeyword('ins')">추가</button>
     </div>
+
+    <!-- 3. 백업 및 제미나이 내보내기 -->
     <div class="settings-section">
-      <button class="action-btn" onclick="exportJSON()">JSON 내보내기</button>
+      <button class="action-btn" onclick="exportJSON()">JSON 내보내기 (Gemini 최적화)</button>
       <button class="action-btn" onclick="document.getElementById('fileInput').click()">JSON 불러오기</button>
       <button class="action-btn danger" onclick="clearAllData()">데이터 전체 삭제</button>
     </div>
@@ -91,14 +118,22 @@
   <script>
     const DEFAULT_KWS = ["출근", "퇴근", "외근"];
     const DEFAULT_INS = ["원", "식사", "회의"];
+    const DEFAULT_MEMO = "이 파일은 개인 일상 로그 및 위치 기록 데이터입니다. 데이터를 분석하여 요약 및 통계를 생성해 주세요.";
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('datePicker').value = new Date().toISOString().split('T')[0];
+      // 저장된 AI 메모 불러오기
+      document.getElementById('aiMemoInput').value = localStorage.getItem('app_ai_memo') || DEFAULT_MEMO;
       renderAll();
     });
 
     function getS(key) { return JSON.parse(localStorage.getItem(key) || 'null'); }
     function setS(key, val) { localStorage.setItem(key, JSON.stringify(val)); renderAll(); }
+
+    function saveAiMemo() {
+      const val = document.getElementById('aiMemoInput').value;
+      localStorage.setItem('app_ai_memo', val);
+    }
 
     function renderAll() {
       renderMain();
@@ -156,6 +191,7 @@
 
     function deleteLog(id) {
       setS('app_logs', (getS('app_logs') || []).filter(l => l.id !== id));
+      renderSearchLogs(); renderDateLogs();
     }
 
     function renderSearchLogs() {
@@ -195,21 +231,42 @@
     function remove(key, idx) { const arr = getS(key); arr.splice(idx, 1); setS(key, arr); }
     function move(key, idx, dir) { const arr = getS(key); const target = idx + dir; if(target >=0 && target < arr.length) { [arr[idx], arr[target]] = [arr[target], arr[idx]]; setS(key, arr); } }
 
+    /* 제미나이가 바로 해석할 수 있도록 메타 구조 포함 내보내기 */
     function exportJSON() {
-      const data = JSON.stringify(getS('app_logs') || []);
+      const logs = getS('app_logs') || [];
+      const memo = localStorage.getItem('app_ai_memo') || DEFAULT_MEMO;
+      
+      const exportObject = {
+        system_instruction: memo,
+        total_count: logs.length,
+        exported_at: new Date().toLocaleString(),
+        logs: logs
+      };
+
+      const data = JSON.stringify(exportObject, null, 2);
       const blob = new Blob([data], {type: 'application/json'});
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'log_backup.json'; a.click();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `log_backup_${new Date().toISOString().split('T')[0]}.json`; a.click();
     }
 
+    /* 불러오기: 신규 메타 형식 및 이전 단순 배열 형식을 둘 다 호환 */
     function importJSON(e) {
       const file = e.target.files[0];
       if(!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
         try {
-          setS('app_logs', JSON.parse(ev.target.result));
+          const parsed = JSON.parse(ev.target.result);
+          if (Array.isArray(parsed)) {
+            setS('app_logs', parsed);
+          } else if (parsed.logs && Array.isArray(parsed.logs)) {
+            setS('app_logs', parsed.logs);
+            if (parsed.system_instruction) {
+              localStorage.setItem('app_ai_memo', parsed.system_instruction);
+              document.getElementById('aiMemoInput').value = parsed.system_instruction;
+            }
+          }
           alert('데이터를 성공적으로 불러왔습니다.');
-        } catch(e) { alert('파일 형식이 올바르지 않습니다.'); }
+        } catch(err) { alert('파일 형식이 올바르지 않습니다.'); }
       };
       reader.readAsText(file);
     }
